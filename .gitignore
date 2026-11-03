@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.env
+.env.*
+rest/rest-server-backup.py
+rustfs/rustfs-config.yaml
+rustfs/rustfs-secret.yaml
