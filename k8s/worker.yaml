@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demucs-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: demucs-worker}
+  template:
+    metadata:
+      labels: {app: demucs-worker}
+    spec:
+      containers:
+      - name: worker
+        image: WORKER_IMAGE_PLACEHOLDER
+        envFrom:
+        - configMapRef: {name: lab7-settings}
+        - secretRef: {name: rustfs-client-credentials}
+        resources:
+          requests: {cpu: '1000m', memory: 6Gi}
+          limits: {memory: 10Gi}

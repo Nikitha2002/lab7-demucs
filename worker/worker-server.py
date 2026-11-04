@@ -1,129 +1,44 @@
-import os
-import json
-import time
-import tempfile
-import subprocess
+import os, json, time, tempfile, subprocess, logging
 from pathlib import Path
-
-import boto3
-import redis
-import requests
+import boto3, redis, requests
 from botocore.config import Config
-
-REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
-REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
-QUEUE_KEY = "toWorkers"
-
-S3_ENDPOINT = os.getenv("S3_ENDPOINT", "http://localhost:9000")
-S3_BUCKET = os.getenv("S3_BUCKET", "demucs-audio")
-
-redis_client = redis.Redis(
-    host=REDIS_HOST,
-    port=REDIS_PORT,
-    decode_responses=True
-)
-
-s3 = boto3.client(
-    "s3",
-    endpoint_url=S3_ENDPOINT,
-    aws_access_key_id=os.environ.get("S3_ACCESS_KEY"),
-    aws_secret_access_key=os.environ.get("S3_SECRET_KEY"),
-    region_name="us-east-1",
-    config=Config(signature_version="s3v4")
-)
-
-TRACKS = ["bass", "drums", "vocals", "other"]
-
-
-def process_job(job):
-    songhash = job["hash"]
-    model = job.get("model", "mdx_extra_q")
-    object_key = job["object_key"]
-    callback = job.get("callback")
-
-    # Restrict model names to known Demucs models.
-    if model not in {"mdx_extra_q", "htdemucs", "htdemucs_ft"}:
-        raise ValueError("Unsupported Demucs model")
-
-    print(f"Processing song: {songhash}", flush=True)
-
+logging.basicConfig(level=logging.INFO,format='%(asctime)s %(levelname)s %(message)s')
+R=redis.Redis(host=os.getenv('REDIS_HOST','redis'),port=int(os.getenv('REDIS_PORT','6379')),decode_responses=True,socket_connect_timeout=5)
+S=boto3.client('s3',endpoint_url=os.getenv('S3_ENDPOINT','http://rustfs-svc.rustfs-ns.svc.cluster.local:9000'),aws_access_key_id=os.getenv('S3_ACCESS_KEY'),aws_secret_access_key=os.getenv('S3_SECRET_KEY'),region_name='us-east-1',config=Config(signature_version='s3v4'))
+BUCKET=os.getenv('S3_BUCKET','demucs-audio'); QUEUE='toWorkers'; FAILED='failedJobs'
+TRACKS=('bass','drums','vocals','other')
+def process(job):
+    h=job['hash']; model=job.get('model','mdx_extra_q')
+    if not (len(h)==32 and all(c in '0123456789abcdef' for c in h)): raise ValueError('Invalid hash')
+    if model not in ('mdx_extra_q','htdemucs','htdemucs_ft'): raise ValueError('Invalid model')
     with tempfile.TemporaryDirectory() as tmp:
-        workdir = Path(tmp)
-        input_file = workdir / f"{songhash}.mp3"
-        output_dir = workdir / "output"
-
-        s3.download_file(
-            S3_BUCKET,
-            object_key,
-            str(input_file)
-        )
-
-        command = [
-            "python", "-m", "demucs.separate",
-            "-n", model,
-            "--mp3",
-            "--out", str(output_dir),
-            str(input_file)
-        ]
-
-        subprocess.run(
-            command,
-            check=True,
-            timeout=1800
-        )
-
-        track_dir = output_dir / model / songhash
-
-        for track in TRACKS:
-            track_file = track_dir / f"{track}.mp3"
-
-            if not track_file.exists():
-                raise FileNotFoundError(
-                    f"Missing separated track: {track}"
-                )
-
-            s3.upload_file(
-                str(track_file),
-                S3_BUCKET,
-                f"{songhash}/{track}.mp3",
-                ExtraArgs={"ContentType": "audio/mpeg"}
-            )
-
-        if isinstance(callback, dict) and callback.get("url"):
-            try:
-                requests.post(
-                    callback["url"],
-                    json=callback.get("data", {}),
-                    timeout=5
-                )
-            except requests.RequestException as exc:
-                print(f"Callback failed: {exc}", flush=True)
-
-    print(f"Completed song: {songhash}", flush=True)
-
+        inp=Path(tmp)/f'{h}.mp3'; out=Path(tmp)/'output'
+        S.download_file(BUCKET,job['object_key'],str(inp))
+        cmd=['python','-m','demucs.separate','-n',model,'--mp3','-d','cpu','--out',str(out),str(inp)]
+        subprocess.run(cmd,check=True,timeout=1800)
+        trackdir=out/model/h
+        for stem in TRACKS:
+            f=trackdir/(stem+'.mp3')
+            if not f.is_file(): raise FileNotFoundError(str(f))
+            S.upload_file(str(f),BUCKET,f'{h}/{stem}.mp3',ExtraArgs={'ContentType':'audio/mpeg'})
+    callback=job.get('callback')
+    if isinstance(callback,dict) and callback.get('url'):
+        try: requests.post(callback['url'],json=callback.get('data',{}),timeout=5)
+        except requests.RequestException as e: logging.warning('Callback failed: %s',e)
+    logging.info('Completed %s',h)
 
 def main():
-    print("Demucs worker started", flush=True)
-
+    logging.info('Worker ready')
     while True:
         try:
-            item = redis_client.blpop(QUEUE_KEY, timeout=5)
-
-            if item is None:
-                continue
-
-            _, payload = item
-            job = json.loads(payload)
-
-            try:
-                process_job(job)
-            except Exception as exc:
-                print(f"Job failed: {exc}", flush=True)
-
-        except redis.RedisError as exc:
-            print(f"Redis connection error: {exc}", flush=True)
+            entry=R.blpop(QUEUE,timeout=5)
+            if entry is None: continue
+            payload=entry[1]
+            try: process(json.loads(payload))
+            except Exception:
+                logging.exception('Job failed; preserving in failedJobs')
+                R.rpush(FAILED,payload)
+        except redis.RedisError:
+            logging.exception('Redis unavailable; retrying')
             time.sleep(5)
-
-
-if __name__ == "__main__":
-    main()
+if __name__=='__main__': main()
