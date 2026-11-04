@@ -1,6 +1,6 @@
 # Lab 7 deployment guide (original implementation)
 
-This is a development package, **not an end-to-end verified submission**. It is designed to be merged into your own fork of the official lab. Test everything before grading.
+This project has been successfully tested end-to-end on both local Kubernetes (Kind) and Google Kubernetes Engine (GKE). The REST API, Redis queue, Demucs worker, and RustFS storage were verified. MP3 submission, separation into four tracks, track downloads, and track deletion were tested successfully. GKE deployment evidence is available in `evidence/gke-deployment.txt`.
 
 ## Architecture
 Flask REST -> RustFS S3 storage + Redis `toWorkers` -> Demucs CPU worker -> RustFS four output MP3s. `failedJobs` retains failed job payloads for debugging; automatic retry is not implemented.
