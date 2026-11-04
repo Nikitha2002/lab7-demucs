@@ -1,0 +1,60 @@
+=== GKE CLUSTER ===
+NAME: lab7-demucs
+LOCATION: us-central1-a
+MASTER_VERSION: 1.36.4-gke.2046003
+MASTER_IP: 136.115.29.16
+MACHINE_TYPE: e2-standard-4
+NODE_VERSION: 1.36.4-gke.2046003
+NUM_NODES: 1
+STATUS: RUNNING
+STACK_TYPE: IPV4
+=== KUBERNETES CONTEXT ===
+gke_lab7-demucs-513619_us-central1-a_lab7-demucs
+=== APPLICATION DEPLOYMENTS ===
+NAME            READY   UP-TO-DATE   AVAILABLE   AGE
+demucs-worker   1/1     1            1           5m3s
+redis           1/1     1            1           11m
+rest-server     1/1     1            1           5m3s
+=== ALL PODS ===
+NAMESPACE         NAME                                                    READY   STATUS    RESTARTS   AGE
+default           demucs-worker-57c74bcfdd-llvvb                          1/1     Running   0          5m2s
+default           redis-744d76d56-p6qqp                                   1/1     Running   0          11m
+default           rest-server-7fb65bc9f5-946w9                            1/1     Running   0          5m3s
+gke-managed-cim   kube-state-metrics-0                                    2/2     Running   0          27m
+gmp-system        collector-mzw9q                                         2/2     Running   0          26m
+gmp-system        gmp-operator-85bcc95ccf-pk95h                           1/1     Running   0          26m
+kube-system       event-exporter-gke-7dc78f588-l87kc                      2/2     Running   0          27m
+kube-system       filestore-lock-release-controller-5df6cdc5b6-b9rpr      2/2     Running   0          27m
+kube-system       filestore-node-vnnpk                                    4/4     Running   0          26m
+kube-system       fluentbit-gke-8mv7j                                     3/3     Running   0          26m
+kube-system       gke-metrics-agent-g2wlr                                 3/3     Running   0          26m
+kube-system       konnectivity-agent-7f4945b887-2wdg9                     2/2     Running   0          27m
+kube-system       konnectivity-agent-autoscaler-6b77fc57f9-4kvtx          1/1     Running   0          27m
+kube-system       kube-dns-8b68dd994-w77x7                                2/2     Running   0          28m
+kube-system       kube-dns-autoscaler-b66d9cc47-dvtxq                     1/1     Running   0          27m
+kube-system       kube-proxy-gke-lab7-demucs-default-pool-b6ef06b5-9bn5   1/1     Running   0          26m
+kube-system       l7-default-backend-585f468ff6-scl24                     1/1     Running   0          27m
+kube-system       metrics-server-v1.36.0-cc588c98f-sjg7q                  1/1     Running   0          26m
+kube-system       node-local-dns-zdz25                                    2/2     Running   0          26m
+kube-system       pdcsi-node-fblcg                                        3/3     Running   0          26m
+rustfs-ns         rustfs-758fb8756d-szhgx                                 1/1     Running   0          10m
+=== RUSTFS STORAGE ===
+NAME          STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   VOLUMEATTRIBUTESCLASS   AGE
+rustfs-data   Bound    pvc-a9c5e54a-cd5a-4bb1-84fb-34b04b932bb1   1Gi        RWO            standard-rwo   <unset>                 10m
+rustfs-logs   Bound    pvc-d28a7f5c-cd27-4801-9bd5-f004e4ab73c6   1Gi        RWO            standard-rwo   <unset>                 10m
+=== WORKER COMPLETION ===
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/redis/connection.py", line 1407, in read_response
+    response = self._parser.read_response(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/redis/_parsers/resp3.py", line 40, in read_response
+    result = self._read_response(
+             ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/redis/_parsers/resp3.py", line 65, in _read_response
+    raw = self._buffer.readline(timeout=timeout)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/redis/_parsers/socket.py", line 117, in readline
+    self._read_from_socket(timeout=timeout)
+  File "/usr/local/lib/python3.11/site-packages/redis/_parsers/socket.py", line 77, in _read_from_socket
+    raise TimeoutError("Timeout reading from socket")
+redis.exceptions.TimeoutError: Timeout reading from socket
